@@ -11,15 +11,11 @@ import okul.com.routes.createRoomRoute
 import okul.com.session.DrawingSession
 val server = DrawingServer()// used for global access
 fun main() {
-
     embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
         configureSessions()
         configureRouting()
         configureSerialization()
         configureSockets()
         configureMonitoring()
-        install(Routing) {
-            createRoomRoute()
-        }
     }.start(wait = true)
 }
