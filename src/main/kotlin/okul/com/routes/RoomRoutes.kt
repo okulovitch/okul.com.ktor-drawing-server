@@ -8,6 +8,7 @@ import io.ktor.routing.*
 import okul.com.data.Room
 import okul.com.data.models.BasicApiResponse
 import okul.com.data.models.CreateRoomRequest
+import okul.com.data.models.RoomResponse
 import okul.com.server
 import okul.com.util.Constants.MAX_ROOM_SIZE
 
@@ -36,7 +37,7 @@ fun Route.createRoomRoute() {
             if (roomRequest.maxPlayers > MAX_ROOM_SIZE) {
                 call.respond(
                     HttpStatusCode.OK,
-                    BasicApiResponse(successful = false,"The maximum room size is $MAX_ROOM_SIZE")
+                    BasicApiResponse(successful = false, "The maximum room size is $MAX_ROOM_SIZE")
                 )
                 return@post
             }
@@ -44,10 +45,29 @@ fun Route.createRoomRoute() {
                 roomRequest.name,
                 roomRequest.maxPlayers
             )
-            server.rooms[roomRequest.name] =  room
+            server.rooms[roomRequest.name] = room
             println("Room created: ${roomRequest.name}")
 
-            call.respond(HttpStatusCode.OK,BasicApiResponse(true))
+            call.respond(HttpStatusCode.OK, BasicApiResponse(true))
+        }
+    }
+}
+
+fun Route.getRoomsRoute() {
+    route("api/getRooms") {
+        get {
+            val searchQuery = call.parameters["searchQuery"]
+            if (searchQuery == null) {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+            val roomsResult = server.rooms.filterKeys {
+                it.contains(searchQuery, ignoreCase = true)
+            }
+            val roomResponses = roomsResult.values.map {
+                RoomResponse(it.name, it.maxPlayers, it.players.size)
+            }.sortedBy { it.name }
+            call.respond(HttpStatusCode.OK, roomResponses)
         }
     }
 }
