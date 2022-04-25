@@ -10,7 +10,7 @@ import io.ktor.routing.*
 fun Application.configureSerialization() {
     install(ContentNegotiation) {
         gson {
-            }
+        }
     }
 
     routing {
