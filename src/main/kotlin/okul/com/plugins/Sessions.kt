@@ -6,7 +6,7 @@ import io.ktor.util.*
 import okul.com.session.DrawingSession
 
 fun Application.configureSessions() {
-    install(Sessions) {//todo fix crash needed
+    install(Sessions) {
         cookie<DrawingSession>("Session")
     }
     intercept(ApplicationCallPipeline.Features) {

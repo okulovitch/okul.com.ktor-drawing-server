@@ -15,6 +15,6 @@ fun Application.configureRouting() {
         createRoomRoute()
         getRoomsRoute()
         joinRoomRoute()
-       // gameWebSocketRoute()//todo crash app need fix
+        gameWebSocketRoute()//todo crash app need fix
     }
 }
