@@ -4,8 +4,11 @@ import io.ktor.http.cio.websocket.*
 import kotlinx.coroutines.*
 import okul.com.data.models.Announcement
 import okul.com.data.models.ChosenWord
+import okul.com.data.models.GameState
 import okul.com.data.models.PhaseChange
 import okul.com.gson
+import okul.com.util.transformToUnderscores
+import okul.com.util.words
 
 class Room(
     val name: String,
@@ -17,6 +20,7 @@ class Room(
     private var drawingPlayer: Player? = null
     private var winningPlayer = listOf<String>()
     private var word: String? = null
+    private var curWords: List<String>? = null
 
     private var phaseChangedListener: ((Phase) -> Unit)? = null
     var phase = Phase.WAITING_FOR_PLAYERS
@@ -141,7 +145,28 @@ class Room(
 
     }
     private fun gameRunning() {
+        winningPlayer = listOf()
+        val wordToSend = word ?: curWords?.random() ?: words.random()
+        val wordWithUnderScores = wordToSend.transformToUnderscores()
+        val drawingUsername = (drawingPlayer ?: players.random()).username
+        val gameStateForDrawingPlayer = GameState(
+            drawingUsername,
+            wordToSend
+        )
+        val gameStateForGuessingPlayers = GameState(
+            drawingUsername,
+            wordWithUnderScores
+        )
+        GlobalScope.launch{
+            broadcastToAllExcept(
+                gson.toJson(gameStateForGuessingPlayers),
+                drawingPlayer?.clientId ?: players.random().clientId
+            )
+            drawingPlayer?.socket?.send(Frame.Text(gson.toJson(gameStateForDrawingPlayer)))
 
+            timeAndNotify(DELAY_GAME_RUNNING_TO_SHOW_WORD)
+            println("Drawing phase in room $name started. It'll last ${DELAY_GAME_RUNNING_TO_SHOW_WORD/1000}s")
+        }
     }
     private fun showWord() {
         GlobalScope.launch {
