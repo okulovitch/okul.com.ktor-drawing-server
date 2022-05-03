@@ -2,11 +2,9 @@ package okul.com.data
 
 import io.ktor.http.cio.websocket.*
 import kotlinx.coroutines.*
-import okul.com.data.models.Announcement
-import okul.com.data.models.ChosenWord
-import okul.com.data.models.GameState
-import okul.com.data.models.PhaseChange
+import okul.com.data.models.*
 import okul.com.gson
+import okul.com.util.getRandomWords
 import okul.com.util.transformToUnderscores
 import okul.com.util.words
 
@@ -21,6 +19,7 @@ class Room(
     private var winningPlayer = listOf<String>()
     private var word: String? = null
     private var curWords: List<String>? = null
+    private var drawingPlayerIndex = 0
 
     private var phaseChangedListener: ((Phase) -> Unit)? = null
     var phase = Phase.WAITING_FOR_PLAYERS
@@ -142,7 +141,13 @@ class Room(
         }
     }
     private fun newRound() {
-
+        curWords = getRandomWords(3)
+        val newWords = NewWords(curWords!!)
+        nextDrawingPlayer()
+        GlobalScope.launch {
+            drawingPlayer?.socket?.send(Frame.Text(gson.toJson(newWords)))
+            timeAndNotify(DELAY_NEW_ROUND_TO_GAME_RUNNING)
+        }
     }
     private fun gameRunning() {
         winningPlayer = listOf()
@@ -183,6 +188,18 @@ class Room(
             val phaseChange = PhaseChange(Phase.SHOW_WORD, DELAY_SHOW_WORD_TO_NEW_ROUND)
             broadcast(gson.toJson(phaseChange))
         }
+    }
+
+    private fun nextDrawingPlayer() {
+        drawingPlayer?.isDrawing = false
+        if(players.isEmpty())
+            return
+
+        drawingPlayer = if (drawingPlayerIndex <= players.size - 1) {
+            players[drawingPlayerIndex]
+        } else players.last()
+        if (drawingPlayerIndex < players.size - 1) drawingPlayerIndex ++
+        else drawingPlayerIndex = 0
     }
     enum class Phase {
         WAITING_FOR_PLAYERS,
