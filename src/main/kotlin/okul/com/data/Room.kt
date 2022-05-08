@@ -54,8 +54,30 @@ class Room(
     }
 
     suspend fun addPlayer(clientId: String, userName: String, socket: WebSocketSession): Player {
-        val player = Player(userName, socket, clientId)
-        players = players + player // use imutable list to avoid indexOfBound exception
+        var indexToAdd = players.size - 1
+        val player = if (leftPlayers.containsKey(clientId)) {
+            val leftPlayer = leftPlayers[clientId]
+            leftPlayer?.first?.let {
+                it.socket = socket
+                it.isDrawing = drawingPlayer?.clientId == clientId
+                indexToAdd = leftPlayer.second
+
+                playerRemoveJobs[clientId]?.cancel()
+                playerRemoveJobs.remove(clientId)
+                leftPlayers.remove(clientId)
+                it
+            } ?: Player(userName, socket, clientId)
+        } else {
+            Player(userName, socket, clientId)
+        }
+        indexToAdd = when {
+            players.isEmpty() -> 0
+            indexToAdd >= players.size -> players.size - 1
+            else -> indexToAdd
+        }
+        val tmpPlayers = players.toMutableList()
+        tmpPlayers.add(indexToAdd, player)
+        players = tmpPlayers.toList()// use imutable list to avoid indexOfBound exception
 
         if (players.size == 1) {
             phase = Phase.WAITING_FOR_PLAYERS
