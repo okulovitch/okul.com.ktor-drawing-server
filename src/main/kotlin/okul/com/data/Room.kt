@@ -5,6 +5,7 @@ import kotlinx.coroutines.*
 import okul.com.data.models.*
 import okul.com.gson
 import okul.com.util.getRandomWords
+import okul.com.util.matchesWord
 import okul.com.util.transformToUnderscores
 import okul.com.util.words
 
@@ -16,10 +17,11 @@ class Room(
 
     private var timerJob: Job? = null
     private var drawingPlayer: Player? = null
-    private var winningPlayer = listOf<String>()
+    private var winningPlayers = listOf<String>()
     private var word: String? = null
     private var curWords: List<String>? = null
     private var drawingPlayerIndex = 0
+    private var startTime = 0L
 
     private var phaseChangedListener: ((Phase) -> Unit)? = null
     var phase = Phase.WAITING_FOR_PLAYERS
@@ -74,6 +76,7 @@ class Room(
     private fun timeAndNotify(ms: Long) {
         timerJob?.cancel()
         timerJob = GlobalScope.launch {
+            startTime = System.currentTimeMillis()
             val phaseChange = PhaseChange(
                 phase,
                 ms,
@@ -95,6 +98,11 @@ class Room(
                 else -> Phase.WAITING_FOR_PLAYERS
             }
         }
+    }
+
+    private fun isGuessCorrect(guess: ChatMessage): Boolean {
+        return guess.matchesWord(word ?: return false) && !winningPlayers.contains(guess.from) &&
+                guess.from != drawingPlayer?.username && phase == Phase.GAME_RUNNING
     }
     suspend fun broadcast(message: String) {
         players.forEach { player ->
@@ -150,7 +158,7 @@ class Room(
         }
     }
     private fun gameRunning() {
-        winningPlayer = listOf()
+        winningPlayers = listOf()
         val wordToSend = word ?: curWords?.random() ?: words.random()
         val wordWithUnderScores = wordToSend.transformToUnderscores()
         val drawingUsername = (drawingPlayer ?: players.random()).username
@@ -175,7 +183,7 @@ class Room(
     }
     private fun showWord() {
         GlobalScope.launch {
-            if (winningPlayer.isEmpty()) {
+            if (winningPlayers.isEmpty()) {
                 drawingPlayer?.let {
                     it.score -= PENALTY_NOBODY_GUESSED_IT
                 }
@@ -188,6 +196,49 @@ class Room(
             val phaseChange = PhaseChange(Phase.SHOW_WORD, DELAY_SHOW_WORD_TO_NEW_ROUND)
             broadcast(gson.toJson(phaseChange))
         }
+    }
+
+    private fun addWiningPlayer(username: String) : Boolean {
+        winningPlayers = winningPlayers + username
+        if (winningPlayers.size == players.size - 1){
+            phase = Phase.NEW_ROUND
+            return true
+        }
+        return false
+    }
+
+    suspend fun checkWordAndNotifyPlayers(message: ChatMessage): Boolean {
+        if (isGuessCorrect(message)){
+            val guessingTime = System.currentTimeMillis() - startTime
+            val timePercentageLeft = 1f - guessingTime.toFloat() / DELAY_GAME_RUNNING_TO_SHOW_WORD
+            val score = GUESS_SCORE_DEFAULT + GUESS_SCORE_PERCENTAGE_MULTIPLAYER * timePercentageLeft
+            val player = players.find { it.username == message.from }
+
+            player?.let {
+                it.score += score.toInt()
+            }
+            drawingPlayer?.let {
+                it.score += GUESS_SCORE_FOR_DRAWING_PLAYER / players.size
+            }
+
+            val announcement = Announcement(
+                "${message.from} has guessed it!",
+                System.currentTimeMillis(),
+                Announcement.TYPE_PLAYER_GUESSED_WORD
+            )
+            broadcast(gson.toJson(announcement))
+            val isRoundOver = addWiningPlayer(message.from)
+            if (isRoundOver) {
+                val roundOverAnnouncement = Announcement(
+                    "Everybody guessed it! New round starting...",
+                    System.currentTimeMillis(),
+                    Announcement.TYPE_EVERYBODY_GUESSED_IT
+                )
+                broadcast(gson.toJson(roundOverAnnouncement))
+            }
+            return true
+        }
+        return false
     }
 
     private fun nextDrawingPlayer() {
@@ -218,5 +269,9 @@ class Room(
         const val DELAY_SHOW_WORD_TO_NEW_ROUND = 10000L
 
         const val PENALTY_NOBODY_GUESSED_IT = 50
+
+        const val GUESS_SCORE_DEFAULT = 50
+        const val GUESS_SCORE_PERCENTAGE_MULTIPLAYER = 50
+        const val GUESS_SCORE_FOR_DRAWING_PLAYER = 50
     }
 }
