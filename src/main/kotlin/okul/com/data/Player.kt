@@ -9,7 +9,6 @@ import okul.com.data.models.Ping
 import okul.com.gson
 import okul.com.server
 import okul.com.util.Constants.PING_FREQUENCY
-import org.w3c.dom.Text
 
 data class Player(
     val username: String,
