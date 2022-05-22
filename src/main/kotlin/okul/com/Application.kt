@@ -7,6 +7,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.sessions.*
 import io.ktor.util.*
+import io.ktor.websocket.*
 import okul.com.plugins.*
 import okul.com.routes.createRoomRoute
 import okul.com.session.DrawingSession
@@ -16,7 +17,8 @@ val gson = Gson()// used for global access
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
         configureSessions()
-        configureRouting()
+        install(WebSockets)
+        configureRouting()//todo fix
         configureSerialization()
         configureSockets()
         configureMonitoring()

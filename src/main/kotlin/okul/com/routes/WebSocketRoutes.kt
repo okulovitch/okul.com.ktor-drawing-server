@@ -12,7 +12,16 @@ import okul.com.data.models.*
 import okul.com.gson
 import okul.com.server
 import okul.com.session.DrawingSession
-import okul.com.util.Constants
+import okul.com.util.Constants.TYPE_ANNOUNCEMENT
+import okul.com.util.Constants.TYPE_CHAT_MESSAGE
+import okul.com.util.Constants.TYPE_CHOSEN_WORD
+import okul.com.util.Constants.TYPE_DISCONNECT_REQUEST
+import okul.com.util.Constants.TYPE_DRAW_ACTION
+import okul.com.util.Constants.TYPE_DRAW_DATA
+import okul.com.util.Constants.TYPE_GAME_STATE
+import okul.com.util.Constants.TYPE_JOIN_ROOM_HANDSHAKE
+import okul.com.util.Constants.TYPE_PHASE_CHANGE
+import okul.com.util.Constants.TYPE_PING
 
 fun Route.gameWebSocketRoute() {
     route("/ws/draw") {
@@ -51,7 +60,6 @@ fun Route.gameWebSocketRoute() {
                     val room = server.getRoomWithClientId(clientId) ?: return@standardWebSocket
                     room.broadcastToAllExcept(message, clientId)
                     room.addSerializedDrawInfo(message)
-
                 }
                 is ChosenWord -> {
                     val room = server.rooms[payload.roomName] ?: return@standardWebSocket
@@ -59,7 +67,7 @@ fun Route.gameWebSocketRoute() {
                 }
                 is ChatMessage -> {
                     val room = server.rooms[payload.roomName] ?: return@standardWebSocket
-                    if (!room.checkWordAndNotifyPlayers(payload)) {
+                    if(!room.checkWordAndNotifyPlayers(payload)) {
                         room.broadcast(message)
                     }
                 }
@@ -67,7 +75,7 @@ fun Route.gameWebSocketRoute() {
                     server.players[clientId]?.receivedPong()
                 }
                 is DisconnectRequest -> {
-                    server.playerLeft(clientId,true)
+                    server.playerLeft(clientId, true)
                 }
             }
         }
@@ -94,16 +102,16 @@ fun Route.standardWebSocket(
                     val message = frame.readText()
                     val jsonObject = JsonParser.parseString(message).asJsonObject
                     val type = when (jsonObject.get("type").asString) {
-                        Constants.TYPE_CHAT_MESSAGE -> ChatMessage::class.java
-                        Constants.TYPE_DRAW_DATA -> DrawData::class.java
-                        Constants.TYPE_ANNOUNCEMENT -> Announcement::class.java
-                        Constants.TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
-                        Constants.TYPE_PHASE_CHANGE -> PhaseChange::class.java
-                        Constants.TYPE_CHOSEN_WORD -> ChosenWord::class.java
-                        Constants.TYPE_GAME_STATE -> GameState::class.java
-                        Constants.TYPE_PING -> Ping::class.java
-                        Constants.TYPE_DISCONNECT_REQUEST -> DisconnectRequest::class.java
-                        Constants.TYPE_DRAW_ACTION -> DrawAction::class.java
+                        TYPE_CHAT_MESSAGE -> ChatMessage::class.java
+                        TYPE_DRAW_DATA -> DrawData::class.java
+                        TYPE_ANNOUNCEMENT -> Announcement::class.java
+                        TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
+                        TYPE_PHASE_CHANGE -> PhaseChange::class.java
+                        TYPE_CHOSEN_WORD -> ChosenWord::class.java
+                        TYPE_GAME_STATE -> GameState::class.java
+                        TYPE_PING -> Ping::class.java
+                        TYPE_DISCONNECT_REQUEST -> DisconnectRequest::class.java
+                        TYPE_DRAW_ACTION -> DrawAction::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
@@ -114,11 +122,11 @@ fun Route.standardWebSocket(
             e.printStackTrace()
         } finally {
             // Handle disconnects
-            val playerClientId = server.getRoomWithClientId(session.clientId)?.players?.find {
+            val playerWithClientId = server.getRoomWithClientId(session.clientId)?.players?.find {
                 it.clientId == session.clientId
             }
-            if (playerClientId != null) {
-                server.playerLeft(session.clientId, false)
+            if(playerWithClientId != null) {
+                server.playerLeft(session.clientId)
             }
         }
     }
