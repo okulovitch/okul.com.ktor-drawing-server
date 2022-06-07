@@ -8,7 +8,7 @@ import okul.com.plugins.*
 val server = DrawingServer()// used for global access
 val gson = Gson()// used for global access
 fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
+    embeddedServer(Netty, port = 8001, host = "0.0.0.0") {
         configureSessions()
         configureRouting()
         configureSerialization()
